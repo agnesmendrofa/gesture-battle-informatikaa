@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full bg-slate-950 text-slate-100 select-none overflow-hidden">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gesture Battle Informatika Kelas IX</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        teamA: '#3b82f6',
+                        teamB: '#ec4899',
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'bounce-short': 'bounce 0.8s infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            touch-action: manipulation;
+            overscroll-behavior: none;
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.78);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .glass-pill {
+            background: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            border-radius: 9999px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+
+        .card-team-a {
+            border-color: rgba(59, 130, 246, 0.75);
+            box-shadow: 0 0 25px rgba(59, 130, 246, 0.35);
+        }
+
+        .card-team-b {
+            border-color: rgba(236, 72, 153, 0.75);
+            box-shadow: 0 0 25px rgba(236, 72, 153, 0.35);
+        }
+
+        .card-selected-correct {
+            border-color: #22c55e !important;
+            background: rgba(34, 197, 94, 0.35) !important;
+            box-shadow: 0 0 35px rgba(34, 197, 94, 0.9) !important;
+        }
+
+        .card-selected-wrong {
+            border-color: #ef4444 !important;
+            background: rgba(239, 68, 68, 0.35) !important;
+            box-shadow: 0 0 35px rgba(239, 68, 68, 0.9) !important;
+            opacity: 0.5;
+        }
+
+        .mirror-feed {
+            transform: scaleX(-1);
+        }
+
+        #confettiCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 90;
+        }
+    </style>
+</head>
+<body class="h-full bg-slate-950 text-slate-100 flex flex-col justify-between relative overflow-hidden">
+
+    <canvas id="confettiCanvas"></canvas>
+
+    <audio id="bgmAudio" loop preload="auto">
+        <source src="https://raw.githubusercontent.com/agnesmendrofa/musik-saya/main/the_mountain-educational-corporate-199158.mp3" type="audio/mpeg">
+    </audio>
+
+    <header class="w-full glass-panel z-30 px-3 sm:px-4 py-2.5 flex items-center justify-between shadow-xl border-b border-slate-800">
+        <div class="flex items-center gap-2 sm:gap-3">
+            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-pink-600 flex items-center justify-center font-black text-lg sm:text-xl text-white shadow-lg">
+                <i class="fa-solid fa-hand-pointer"></i>
+            </div>
+            <div>
+                <h1 class="text-sm sm:text-lg font-extrabold tracking-wide bg-gradient-to-r from-blue-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">
+                    GESTURE BATTLE
+                </h1>
+                <p class="text-[10px] sm:text-xs text-slate-400 font-medium hidden xs:block">Informatika Kelas IX • Multi-Device Ready</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3 sm:gap-6">
+            <div class="text-center">
+                <span class="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider block">Soal</span>
+                <span id="questionNumBadge" class="text-sm sm:text-base font-black text-amber-400">1 / 15</span>
+            </div>
+            <div class="flex items-center gap-1.5 sm:gap-2 bg-slate-900/80 px-3 py-1 rounded-2xl border border-slate-700">
+                <i class="fa-solid fa-stopwatch text-amber-400 text-sm sm:text-lg"></i>
+                <span id="timerText" class="text-xl sm:text-2xl font-black text-white min-w-[2rem] text-center">20</span>
+                <span class="text-[10px] sm:text-xs text-slate-400 font-bold">dtk</span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2 sm:gap-3">
+            <button id="bgmBtn" onclick="toggleBGM()" class="px-2.5 sm:px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 sm:gap-2 shadow-md">
+                <i id="bgmIcon" class="fa-solid fa-music"></i>
+                <span id="bgmLabel" class="hidden sm:inline">MUSIK: ON</span>
+            </button>
+            <div class="hidden md:flex items-center gap-2 bg-slate-900/90 px-3 py-1 rounded-xl border border-slate-700 text-xs">
+                <span class="text-blue-400 font-bold">TIM A: <span id="scoreHeaderA" class="text-white text-sm">0</span></span>
+                <span class="text-slate-600">|</span>
+                <span class="text-pink-400 font-bold">TIM B: <span id="scoreHeaderB" class="text-white text-sm">0</span></span>
+            </div>
+        </div>
+    </header>
+
+    <main class="relative flex-1 w-full overflow-hidden flex bg-slate-950">
+        
+        <video id="webcam" class="absolute inset-0 w-full h-full object-cover mirror-feed opacity-60 z-0" autoplay playsinline muted></video>
+        <canvas id="handCanvas" class="absolute inset-0 w-full h-full z-10 pointer-events-none"></canvas>
+
+        <div class="absolute inset-0 z-10 pointer-events-none flex">
+            <div class="w-1/2 h-full border-r-2 border-dashed border-blue-500/40 relative">
+                <div class="absolute top-3 left-3 sm:top-4 sm:left-6 bg-blue-600/80 backdrop-blur-md px-3 py-1 rounded-xl border border-blue-400/50 flex items-center gap-2 shadow-lg">
+                    <i class="fa-solid fa-user-group text-white text-xs"></i>
+                    <span class="text-xs sm:text-sm font-black text-white tracking-wide">TIM A (KIRI)</span>
+                </div>
+            </div>
+            <div class="w-1/2 h-full border-l-2 border-dashed border-pink-500/40 relative">
+                <div class="absolute top-3 right-3 sm:top-4 sm:right-6 bg-pink-600/80 backdrop-blur-md px-3 py-1 rounded-xl border border-pink-400/50 flex items-center gap-2 shadow-lg">
+                    <span class="text-xs sm:text-sm font-black text-white tracking-wide">TIM B (KANAN)</span>
+                    <i class="fa-solid fa-user-group text-white text-xs"></i>
+                </div>
+            </div>
+        </div>
+
+        <div id="questionBoxContainer" class="absolute top-10 left-1/2 -translate-x-1/2 z-20 w-11/12 max-w-2xl pointer-events-none">
+            <div class="glass-panel px-6 py-4 rounded-3xl border border-slate-700/80 shadow-2xl text-center">
+                <h2 id="questionText" class="text-sm sm:text-lg font-black text-white leading-snug">
+                    Memuat pertanyaan...
+                </h2>
+            </div>
+        </div>
+
+        <div id="containerTeamA" class="absolute inset-0 z-20 pointer-events-none"></div>
+        <div id="containerTeamB" class="absolute inset-0 z-20 pointer-events-none"></div>
+
+    </main>
+
+    <footer class="w-full glass-panel z-30 px-4 py-2.5 flex items-center justify-between border-t border-slate-800">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-600 flex items-center justify-center font-black text-white text-lg shadow-md shadow-blue-500/30">
+                A
+            </div>
+            <div>
+                <p class="text-[10px] text-blue-300 font-bold uppercase tracking-wider">SKOR TIM A</p>
+                <p id="scoreTextA" class="text-lg sm:text-2xl font-black text-white">0 PTS</p>
+            </div>
+        </div>
+
+        <div class="hidden md:block text-center text-xs text-slate-400">
+            <span class="text-amber-400 font-bold">💡 Multi-Mode:</span> Bisa pakai <span class="text-indigo-400 font-bold">Kamera Web/IFP</span> (Sentuh telunjuk) atau <span class="text-emerald-400 font-bold">Klik/Sentuh Langsung</span> di Layar!
+        </div>
+
+        <div class="flex items-center gap-3 text-right">
+            <div>
+                <p class="text-[10px] text-pink-300 font-bold uppercase tracking-wider">SKOR TIM B</p>
+                <p id="scoreTextB" class="text-lg sm:text-2xl font-black text-white">0 PTS</p>
+            </div>
+            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-pink-600 flex items-center justify-center font-black text-white text-lg shadow-md shadow-pink-500/30">
+                B
+            </div>
+        </div>
+    </footer>
+
+    <div id="cameraLoadModal" class="fixed inset-0 bg-slate-950/95 z-50 flex flex-col items-center justify-center p-6 text-center">
+        <div class="w-20 h-20 rounded-3xl bg-indigo-600/20 border border-indigo-500/50 flex items-center justify-center mb-6 animate-pulse">
+            <i class="fa-solid fa-video text-3xl text-indigo-400"></i>
+        </div>
+        <h2 class="text-xl sm:text-2xl font-black text-white mb-2">MENYIAPKAN GESTURE BATTLE...</h2>
+        <p class="text-xs sm:text-sm text-slate-400 max-w-md mb-6">Mendukung HP, Laptop, & Interactive Flat Panel (Sentuh/Kamera).</p>
+        <div class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-amber-400 text-xs font-bold">
+            <i class="fa-solid fa-spinner animate-spin"></i> Inisialisasi MediaPipe Hands & Kamera...
+        </div>
+    </div>
+
+    <div id="countdownModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-40 hidden flex-col items-center justify-center text-center">
+        <span class="text-xs sm:text-sm font-extrabold text-amber-400 uppercase tracking-widest mb-2">BERSIAPLAH!</span>
+        <h3 class="text-sm sm:text-lg font-bold text-slate-300 mb-6">TUNJUK DENGAN TELUNJUK ATAU SENTUH KAPSUL JAWABAN</h3>
+        <div id="countdownNumber" class="text-7xl sm:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-br from-amber-300 to-amber-500 animate-bounce-short">
+            3
+        </div>
+    </div>
+
+    <div id="explanationModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-lg z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-lg p-5 sm:p-6 rounded-3xl border border-slate-700 shadow-2xl text-center relative overflow-hidden">
+            <div id="modalWinnerRibbon" class="mb-4 py-2 px-4 rounded-xl font-black text-xs sm:text-sm uppercase tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                ⚡ TIM A TERCEPAT & BENAR! (+100 PTS)
+            </div>
+            <h4 id="modalQuestionText" class="text-xs sm:text-base font-bold text-slate-200 mb-4">Pertanyaan...</h4>
+            <div class="bg-emerald-950/60 border border-emerald-500/40 rounded-2xl p-3 sm:p-4 mb-4 text-left">
+                <span class="text-[10px] sm:text-xs font-bold text-emerald-400 uppercase tracking-wider block mb-1">
+                    <i class="fa-solid fa-circle-check mr-1"></i> JAWABAN BENAR:
+                </span>
+                <p id="modalCorrectAnswer" class="text-sm sm:text-base font-extrabold text-white">A. CPU</p>
+            </div>
+            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 sm:p-4 mb-6 text-left">
+                <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    <i class="fa-solid fa-lightbulb mr-1 text-amber-400"></i> PEMBAHASAN:
+                </span>
+                <p id="modalExplanationText" class="text-xs sm:text-sm text-slate-300 leading-relaxed">Penjelasan...</p>
+            </div>
+            <button onclick="closeExplanationAndNext()" class="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2">
+                <span>PERTANYAAN SELANJUTNYA</span>
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <div id="victoryModal" class="fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-xl p-6 sm:p-8 rounded-3xl border border-amber-500/40 shadow-2xl text-center relative overflow-hidden">
+            <div class="w-20 h-20 sm:w-24 sm:h-24 mx-auto rounded-3xl bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center shadow-2xl shadow-amber-500/40 mb-6 animate-bounce-short">
+                <i class="fa-solid fa-trophy text-4xl sm:text-5xl text-slate-950"></i>
+            </div>
+            <span class="px-4 py-1 rounded-full bg-amber-500/20 text-amber-300 text-[10px] sm:text-xs font-black uppercase tracking-widest border border-amber-500/40">
+                GRAND MASTER GESTURE INFORMATIKA
+            </span>
+            <h2 id="victoryTitle" class="text-2xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-400 my-3">
+                TIM A MENANG!
+            </h2>
+            <p id="victorySubtitle" class="text-xs sm:text-sm text-slate-300 mb-6 font-medium">Selamat atas kemenangan gemilang!</p>
+            <div class="grid grid-cols-2 gap-4 mb-8">
+                <div id="finalCardA" class="p-3 sm:p-4 rounded-2xl bg-blue-950/60 border border-blue-500/40 text-center">
+                    <p class="text-[10px] sm:text-xs text-blue-300 font-bold uppercase tracking-wider mb-1">SKOR TIM A</p>
+                    <p id="finalScoreA" class="text-2xl sm:text-3xl font-black text-white">800</p>
+                    <span id="finalBadgeA" class="inline-block text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 mt-2">JUARA 1 🥇</span>
+                </div>
+                <div id="finalCardB" class="p-3 sm:p-4 rounded-2xl bg-pink-950/60 border border-pink-500/40 text-center">
+                    <p class="text-[10px] sm:text-xs text-pink-300 font-bold uppercase tracking-wider mb-1">SKOR TIM B</p>
+                    <p id="finalScoreB" class="text-2xl sm:text-3xl font-black text-white">500</p>
+                    <span id="finalBadgeB" class="inline-block text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 mt-2">RUNNER UP 🥈</span>
+                </div>
+            </div>
+            <button onclick="restartGame()" class="w-full py-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-sm sm:text-base rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2">
+                <i class="fa-solid fa-rotate-right"></i>
+                <span>MAIN LAGI SEKARANG</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const informaticsQuestions = [
+            {
+                q: "Perangkat keras komputer yang berfungsi sebagai otak pemroses data utama adalah...",
+                options: ["A. Monitor", "B. CPU", "C. Keyboard", "D. Mouse"],
+                answer: 1,
+                explanation: "CPU (Central Processing Unit) bertindak sebagai otak komputer yang mengolah seluruh instruksi dan perintah sistem."
+            },
+            {
+                q: "Tombol keyboard yang digunakan untuk menghapus karakter di sebelah kiri kursor adalah...",
+                options: ["A. Backspace", "B. Delete", "C. Enter", "D. Shift"],
+                answer: 0,
+                explanation: "Backspace menghapus karakter di sebelah kiri kursor, sedangkan Delete menghapus karakter di sebelah kanan kursor."
+            },
+            {
+                q: "Kombinasi tombol shortcut keyboard untuk menyalin (copy) teks atau berkas adalah...",
+                options: ["A. Ctrl + V", "B. Ctrl + X", "C. Ctrl + C", "D. Ctrl + Z"],
+                answer: 2,
+                explanation: "Ctrl + C digunakan untuk Copy (menyalin), Ctrl + V untuk Paste (menempelkan), dan Ctrl + X untuk Cut (memotong)."
+            },
+            {
+                q: "Ekstensi file dokumen standar yang dihasilkan oleh Microsoft Word versi modern adalah...",
+                options: ["A. .xlsx", "B. .docx", "C. .pptx", "D. .pdf"],
+                answer: 1,
+                explanation: ".docx adalah format standar Microsoft Word, .xlsx untuk Excel, dan .pptx untuk PowerPoint."
+            },
+            {
+                q: "Jejaring jaringan komputer raksasa yang terhubung secara global di seluruh dunia disebut...",
+                options: ["A. LAN", "B. Internet", "C. Intranet", "D. Bluetooth"],
+                answer: 1,
+                explanation: "Internet (Interconnected Network) menghubungkan miliaran komputer di seluruh dunia secara global."
+            },
+            {
+                q: "Proses mengamankan pesan biasa menjadi kode rahasia yang tidak dapat dibaca orang lain disebut...",
+                options: ["A. Enkripsi", "B. Dekripsi", "C. Browsing", "D. Downloading"],
+                answer: 0,
+                explanation: "Enkripsi adalah proses mengacak data menjadi cipherteks rahasia agar aman dari akses tanpa izin."
+            },
+            {
+                q: "Perangkat keluaran (output device) yang berfungsi menampilkan antarmuka visual gambar adalah...",
+                options: ["A. Scanner", "B. Microphone", "C. Monitor", "D. Webcam"],
+                answer: 2,
+                explanation: "Monitor adalah perangkat output visual utama untuk menampilkan grafis dari komputer."
+            },
+            {
+                q: "Struktur data yang bekerja menggunakan prinsip LIFO (Last In First Out) adalah...",
+                options: ["A. Queue (Antrean)", "B. Stack (Tumpukan)", "C. Tree (Pohon)", "D. Graph"],
+                answer: 1,
+                explanation: "Stack menggunakan prinsip LIFO (elemen terakhir yang dimasukkan akan menjadi yang pertama keluar)."
+            },
+            {
+                q: "Aplikasi peramban web (web browser) buatan perusahaan Google adalah...",
+                options: ["A. Google Chrome", "B. Mozilla Firefox", "C. Safari", "D. Opera"],
+                answer: 0,
+                explanation: "Google Chrome adalah web browser paling populer yang dikembangkan oleh Google."
+            },
+            {
+                q: "Satuan unit terkecil dalam penyimpanan data digital pada sistem komputer adalah...",
+                options: ["A. Byte", "B. Bit", "C. Megabyte", "D. Gigabyte"],
+                answer: 1,
+                explanation: "Bit (Binary Digit) adalah satuan terkecil data digital bernilai 0 atau 1."
+            },
+            {
+                q: "Perintah standar untuk mematikan perangkat komputer secara aman adalah...",
+                options: ["A. Restart", "B. Sleep", "C. Shutdown", "D. Hibernate"],
+                answer: 2,
+                explanation: "Shutdown mematikan seluruh komponen keras dan sistem operasi secara aman."
+            },
+            {
+                q: "Jenis kejahatan siber berupa penipuan untuk mencuri data sensitif melalui tautan/web palsu disebut...",
+                options: ["A. Phishing", "B. Spamming", "C. Hacking", "D. Formatting"],
+                answer: 0,
+                explanation: "Phishing adalah teknik penipuan online untuk mengelabuhi korban agar memberikan informasi rahasia."
+            },
+            {
+                q: "Simbol dalam diagram alir (flowchart) yang berbentuk belah ketupat berfungsi untuk...",
+                options: ["A. Input / Output", "B. Proses", "C. Keputusan (Decision)", "D. Start / End"],
+                answer: 2,
+                explanation: "Simbol Belah Ketupat (Decision) digunakan untuk percabangan atau pengambilan kondisi keputusan."
+            },
+            {
+                q: "Perangkat lunak utama yang mengontrol dan mengelola seluruh perangkat keras komputer adalah...",
+                options: ["A. Bahasa Pemrograman", "B. Sistem Operasi", "C. Aplikasi Browser", "D. Antivirus"],
+                answer: 1,
+                explanation: "Sistem Operasi (seperti Windows, Linux, macOS) menjembatani interaksi antara pengguna, aplikasi, dan perangkat keras."
+            },
+            {
+                q: "Jaringan komputer area terbatas seperti dalam satu ruangan laboratorium sekolah dinamakan...",
+                options: ["A. LAN (Local Area Network)", "B. WAN", "C. MAN", "D. Satellite"],
+                answer: 0,
+                explanation: "LAN mencakup area geografis yang sangat terbatas seperti ruangan kelas, laboratorium, atau gedung sekolah."
+            }
+        ];
+
+        let currentQuestionIndex = 0;
+        let scoreA = 0;
+        let scoreB = 0;
+
+        let questionTimer = 20;
+        let timerInterval = null;
+        let activeRound = false;
+
+        let teamAFailed = false;
+        let teamBFailed = false;
+
+        const bgm = document.getElementById('bgmAudio');
+        let isMusicMuted = false;
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playCorrectSoundFX() {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    
+                    osc.type = idx === 3 ? 'triangle' : 'sine';
+                    osc.frequency.setValueAtTime(freq, audioCtx.currentTime + (idx * 0.08));
+                    
+                    gain.gain.setValueAtTime(0.25, audioCtx.currentTime + (idx * 0.08));
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (idx * 0.08) + 0.35);
+                    
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    
+                    osc.start(audioCtx.currentTime + (idx * 0.08));
+                    osc.stop(audioCtx.currentTime + (idx * 0.08) + 0.35);
+                });
+            } catch(e) {}
+        }
+
+        function playSoundWrong() {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const now = audioCtx.currentTime;
+                [140, 148].forEach(freq => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(freq, now);
+                    
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
+                    
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    
+                    osc.start(now);
+                    osc.stop(now + 0.45);
+                });
+            } catch(err) {
+                console.log("Audio error", err);
+            }
+        }
+
+        function toggleBGM() {
+            if (!bgm) return;
+            if (bgm.paused) {
+                bgm.play().then(() => {
+                    isMusicMuted = false;
+                    updateBGMUI(true);
+                }).catch(e => console.log("BGM playback error", e));
+            } else {
+                bgm.pause();
+                isMusicMuted = true;
+                updateBGMUI(false);
+            }
+        }
+
+        function updateBGMUI(isPlaying) {
+            const icon = document.getElementById('bgmIcon');
+            const label = document.getElementById('bgmLabel');
+            const btn = document.getElementById('bgmBtn');
+            if (isPlaying) {
+                if(icon) icon.className = 'fa-solid fa-music';
+                if(label) label.textContent = 'MUSIK: ON';
+                if(btn) btn.className = 'px-2.5 sm:px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 sm:gap-2 shadow-md';
+            } else {
+                if(icon) icon.className = 'fa-solid fa-volume-xmark';
+                if(label) label.textContent = 'MUSIK: OFF';
+                if(btn) btn.className = 'px-2.5 sm:px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 sm:gap-2 shadow-md';
+            }
+        }
+
+        let waveTime = 0;
+        const optionCards = [];
+
+        function renderFloatingCards() {
+            const containerA = document.getElementById('containerTeamA');
+            const containerB = document.getElementById('containerTeamB');
+            
+            containerA.innerHTML = '';
+            containerB.innerHTML = '';
+            optionCards.length = 0;
+
+            const q = informaticsQuestions[currentQuestionIndex];
+            const startY = 135;
+
+            q.options.forEach((optText, idx) => {
+                const slotBaseY = startY + (idx * 84);
+
+                const pillA = document.createElement('div');
+                pillA.className = 'absolute glass-pill card-team-a px-4 py-2 sm:px-5 sm:py-2.5 pointer-events-auto flex items-center justify-between shadow-xl';
+                pillA.dataset.team = 'A';
+                pillA.dataset.index = idx;
+                pillA.innerHTML = `
+                    <span class="text-xs sm:text-sm font-extrabold text-white tracking-wide">${optText}</span>
+                    <span id="badge-A-${idx}" class="hidden ml-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase"></span>
+                `;
+                
+                pillA.addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    processTeamAnswer('A', idx, pillA);
+                }, { passive: false });
+
+                containerA.appendChild(pillA);
+
+                const pillB = document.createElement('div');
+                pillB.className = 'absolute glass-pill card-team-b px-4 py-2 sm:px-5 sm:py-2.5 pointer-events-auto flex items-center justify-between shadow-xl';
+                pillB.dataset.team = 'B';
+                pillB.dataset.index = idx;
+                pillB.innerHTML = `
+                    <span class="text-xs sm:text-sm font-extrabold text-white tracking-wide">${optText}</span>
+                    <span id="badge-B-${idx}" class="hidden ml-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase"></span>
+                `;
+                
+                pillB.addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    processTeamAnswer('B', idx, pillB);
+                }, { passive: false });
+
+                containerB.appendChild(pillB);
+
+                optionCards.push({ 
+                    element: pillA, 
+                    team: 'A', 
+                    index: idx, 
+                    x: window.innerWidth * 0.08,
+                    y: slotBaseY,
+                    baseX: window.innerWidth * 0.08, 
+                    baseY: slotBaseY, 
+                    freqX: 1.3 + (idx * 0.15), 
+                    freqY: 0.4 + (idx * 0.1), 
+                    ampX: 25, 
+                    ampY: 8 
+                });
+
+                optionCards.push({ 
+                    element: pillB, 
+                    team: 'B', 
+                    index: idx, 
+                    x: window.innerWidth * 0.58,
+                    y: slotBaseY,
+                    baseX: window.innerWidth * 0.58, 
+                    baseY: slotBaseY, 
+                    freqX: 1.45 + (idx * 0.15), 
+                    freqY: 0.45 + (idx * 0.1), 
+                    ampX: 25, 
+                    ampY: 8 
+                });
+            });
+        }
+
+        function animateFloatingCards() {
+            waveTime += 0.035;
+            const pillWidth = Math.min(220, window.innerWidth * 0.4);
+            const minPaddingY = 12;
+            const minYBound = 130;
+            const maxYBound = window.innerHeight - 170;
+
+            optionCards.forEach((cardObj) => {
+                const offsetX = Math.sin(waveTime * cardObj.freqX + cardObj.index * 2.1) * cardObj.ampX;
+                const offsetY = Math.cos(waveTime * cardObj.freqY + cardObj.index * 1.7) * cardObj.ampY;
+
+                let targetX = cardObj.baseX + offsetX;
+                let targetY = cardObj.baseY + offsetY;
+
+                if (cardObj.team === 'A') {
+                    targetX = Math.max(15, Math.min(window.innerWidth * 0.48 - pillWidth - 15, targetX));
+                } else {
+                    targetX = Math.max(window.innerWidth * 0.52, Math.min(window.innerWidth - pillWidth - 15, targetX));
+                }
+
+                targetY = Math.max(minYBound, Math.min(maxYBound, targetY));
+
+                cardObj.x = targetX;
+                cardObj.y = targetY;
+            });
+
+            ['A', 'B'].forEach(team => {
+                const teamCards = optionCards.filter(c => c.team === team).sort((a, b) => a.y - b.y);
+                for (let i = 0; i < teamCards.length - 1; i++) {
+                    const topCard = teamCards[i];
+                    const bottomCard = teamCards[i + 1];
+                    const overlap = (topCard.y + 40 + minPaddingY) - bottomCard.y;
+
+                    if (overlap > 0) {
+                        topCard.y -= overlap / 2;
+                        bottomCard.y += overlap / 2;
+                    }
+                }
+            });
+
+            optionCards.forEach((cardObj) => {
+                const cardEl = cardObj.element;
+                cardEl.style.width = pillWidth + 'px';
+                cardEl.style.left = cardObj.x + 'px';
+                cardEl.style.top = cardObj.y + 'px';
+            });
+
+            requestAnimationFrame(animateFloatingCards);
+        }
+
+        const videoElement = document.getElementById('webcam');
+        const canvasElement = document.getElementById('handCanvas');
+        const canvasCtx = canvasElement.getContext('2d');
+
+        let isCameraInitialized = false;
+
+        let hoverTargets = { A: null, B: null };
+        let hoverProgress = { A: 0, B: 0 };
+        const HOVER_THRESHOLD = 0.22; // ~220ms dwell time for instant & stable pointing
+        let lastFrameTime = performance.now();
+
+        // Inisialisasi MediaPipe Hands secara tepat dengan CDN file locator
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.55,
+            minTrackingConfidence: 0.55
+        });
+
+        hands.onResults(onHandResults);
+
+        function getScreenCoords(normX, normY) {
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            const videoW = videoElement.videoWidth || 1280;
+            const videoH = videoElement.videoHeight || 720;
+            
+            const videoAspect = videoW / videoH;
+            const screenAspect = vw / vh;
+
+            let renderW, renderH, offsetX, offsetY;
+
+            if (screenAspect > videoAspect) {
+                renderW = vw;
+                renderH = vw / videoAspect;
+                offsetX = 0;
+                offsetY = (renderH - vh) / 2;
+            } else {
+                renderH = vh;
+                renderW = vh * videoAspect;
+                offsetX = (renderW - vw) / 2;
+                offsetY = 0;
+            }
+
+            // Video memiliki CSS transform scaleX(-1)
+            const screenX = (1 - normX) * renderW - offsetX;
+            const screenY = normY * renderH - offsetY;
+
+            return { x: screenX, y: screenY };
+        }
+
+        function onHandResults(results) {
+            const now = performance.now();
+            const dt = Math.min((now - lastFrameTime) / 1000, 0.1);
+            lastFrameTime = now;
+
+            if (!isCameraInitialized) {
+                isCameraInitialized = true;
+                const camModal = document.getElementById('cameraLoadModal');
+                if (camModal) camModal.classList.add('hidden');
+                startRoundCountdown();
+            }
+
+            canvasElement.width = window.innerWidth;
+            canvasElement.height = window.innerHeight;
+
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+            const activeCardHits = { A: null, B: null };
+
+            if (results.multiHandLandmarks && results.multiHandedness) {
+                for (let i = 0; i < results.multiHandLandmarks.length; i++) {
+                    const landmarks = results.multiHandLandmarks[i];
+                    const indexTip = landmarks[8];
+                    
+                    const coords = getScreenCoords(indexTip.x, indexTip.y);
+                    const screenX = coords.x;
+                    const screenY = coords.y;
+
+                    const side = screenX < window.innerWidth / 2 ? 'A' : 'B';
+                    const themeColor = side === 'A' ? '#3b82f6' : '#ec4899';
+
+                    if (activeRound) {
+                        const hitCard = checkGestureCollision(screenX, screenY, side);
+                        if (hitCard) {
+                            activeCardHits[side] = hitCard;
+                        }
+                    }
+
+                    const progress = hoverProgress[side] || 0;
+                    
+                    // Outer aura glow
+                    canvasCtx.beginPath();
+                    canvasCtx.arc(screenX, screenY, 22 + (progress * 8), 0, 2 * Math.PI);
+                    canvasCtx.fillStyle = side === 'A' ? 'rgba(59, 130, 246, 0.25)' : 'rgba(236, 72, 153, 0.25)';
+                    canvasCtx.fill();
+
+                    // Main pointer dot
+                    canvasCtx.beginPath();
+                    canvasCtx.arc(screenX, screenY, 14, 0, 2 * Math.PI);
+                    canvasCtx.fillStyle = themeColor;
+                    canvasCtx.shadowBlur = 18;
+                    canvasCtx.shadowColor = themeColor;
+                    canvasCtx.fill();
+                    canvasCtx.shadowBlur = 0;
+
+                    // Pointer ring
+                    canvasCtx.beginPath();
+                    canvasCtx.arc(screenX, screenY, 18, 0, 2 * Math.PI);
+                    canvasCtx.strokeStyle = '#ffffff';
+                    canvasCtx.lineWidth = 2.5;
+                    canvasCtx.stroke();
+
+                    // Dwell Charge Ring Indicator
+                    if (progress > 0) {
+                        canvasCtx.beginPath();
+                        canvasCtx.arc(screenX, screenY, 24, -Math.PI / 2, (-Math.PI / 2) + (progress * 2 * Math.PI));
+                        canvasCtx.strokeStyle = '#f59e0b';
+                        canvasCtx.lineWidth = 4;
+                        canvasCtx.stroke();
+                    }
+                }
+            }
+
+            ['A', 'B'].forEach(side => {
+                if (!activeRound) {
+                    hoverProgress[side] = 0;
+                    hoverTargets[side] = null;
+                    return;
+                }
+
+                const cardHit = activeCardHits[side];
+                if (cardHit) {
+                    if (hoverTargets[side] === cardHit) {
+                        hoverProgress[side] += dt / HOVER_THRESHOLD;
+                        if (hoverProgress[side] >= 1.0) {
+                            hoverProgress[side] = 0;
+                            const target = hoverTargets[side];
+                            hoverTargets[side] = null;
+                            processTeamAnswer(side, target.index, target.element);
+                        }
+                    } else {
+                        hoverTargets[side] = cardHit;
+                        hoverProgress[side] = dt / HOVER_THRESHOLD;
+                    }
+                } else {
+                    hoverTargets[side] = null;
+                    hoverProgress[side] = Math.max(0, hoverProgress[side] - (dt * 3));
+                }
+            });
+
+            canvasCtx.restore();
+        }
+
+        function checkGestureCollision(x, y, side) {
+            if ((side === 'A' && teamAFailed) || (side === 'B' && teamBFailed)) return null;
+
+            for (let i = 0; i < optionCards.length; i++) {
+                const cardObj = optionCards[i];
+                if (cardObj.team !== side) continue;
+
+                const rect = cardObj.element.getBoundingClientRect();
+                const paddingX = 30;
+                const paddingY = 22;
+
+                if (x >= rect.left - paddingX && 
+                    x <= rect.right + paddingX && 
+                    y >= rect.top - paddingY && 
+                    y <= rect.bottom + paddingY) {
+                    return cardObj;
+                }
+            }
+            return null;
+        }
+
+        function processTeamAnswer(team, selectedIdx, cardElement) {
+            if (!activeRound) return;
+
+            const q = informaticsQuestions[currentQuestionIndex];
+            const isCorrect = (selectedIdx === q.answer);
+            const badgeEl = document.getElementById(`badge-${team}-${selectedIdx}`);
+
+            if (isCorrect) {
+                activeRound = false;
+                clearInterval(timerInterval);
+
+                playCorrectSoundFX();
+
+                cardElement.classList.add('card-selected-correct');
+                if (badgeEl) {
+                    badgeEl.textContent = 'BENAR';
+                    badgeEl.className = 'ml-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500 text-slate-950 inline-block';
+                }
+
+                if (team === 'A') scoreA += 100;
+                if (team === 'B') scoreB += 100;
+                updateScoreDisplay();
+
+                setTimeout(() => {
+                    showExplanationModal(team, true, selectedIdx);
+                }, 1200);
+
+            } else {
+                playSoundWrong();
+
+                cardElement.classList.add('card-selected-wrong');
+                if (badgeEl) {
+                    badgeEl.textContent = 'SALAH';
+                    badgeEl.className = 'ml-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-rose-600 text-white inline-block';
+                }
+
+                if (team === 'A') {
+                    teamAFailed = true;
+                } else {
+                    teamBFailed = true;
+                }
+
+                if (teamAFailed && teamBFailed) {
+                    activeRound = false;
+                    clearInterval(timerInterval);
+
+                    setTimeout(() => {
+                        showExplanationModal(null, false, null);
+                    }, 1400);
+                }
+            }
+        }
+
+        function startRoundCountdown() {
+            activeRound = false;
+            teamAFailed = false;
+            teamBFailed = false;
+
+            const countdownModal = document.getElementById('countdownModal');
+            const countdownNum = document.getElementById('countdownNumber');
+            
+            countdownModal.classList.remove('hidden');
+            countdownModal.classList.add('flex');
+
+            let count = 3;
+            countdownNum.textContent = count;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.15);
+            } catch(e){}
+
+            const countInterval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    countdownNum.textContent = count;
+                    try {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start();
+                        osc.stop(audioCtx.currentTime + 0.15);
+                    } catch(e){}
+                } else if (count === 0) {
+                    countdownNum.textContent = 'MULAI!';
+                    try {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start();
+                        osc.stop(audioCtx.currentTime + 0.3);
+                    } catch(e){}
+                } else {
+                    clearInterval(countInterval);
+                    countdownModal.classList.add('hidden');
+                    countdownModal.classList.remove('flex');
+                    startQuestionTimer();
+                }
+            }, 800);
+        }
+
+        function startQuestionTimer() {
+            activeRound = true;
+            questionTimer = 20;
+            document.getElementById('timerText').textContent = questionTimer;
+
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                questionTimer--;
+                document.getElementById('timerText').textContent = questionTimer;
+
+                if (questionTimer <= 0) {
+                    clearInterval(timerInterval);
+                    activeRound = false;
+
+                    playSoundWrong();
+                    setTimeout(() => {
+                        showExplanationModal(null, false, null);
+                    }, 1200);
+                }
+            }, 1000);
+        }
+
+        function showExplanationModal(winningTeam, wasCorrect, selectedIdx) {
+            const modal = document.getElementById('explanationModal');
+            const ribbon = document.getElementById('modalWinnerRibbon');
+            const qText = document.getElementById('modalQuestionText');
+            const corrText = document.getElementById('modalCorrectAnswer');
+            const expText = document.getElementById('modalExplanationText');
+
+            const q = informaticsQuestions[currentQuestionIndex];
+
+            qText.textContent = `${currentQuestionIndex + 1}. ${q.q}`;
+            corrText.textContent = q.options[q.answer];
+            expText.textContent = q.explanation;
+
+            if (wasCorrect && winningTeam) {
+                ribbon.className = 'mb-4 py-2 px-4 rounded-xl font-black text-xs sm:text-sm uppercase tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+                ribbon.textContent = `⚡ TIM ${winningTeam} TERCEPAT & BENAR! PEMENANG RONDE (+100 PTS)`;
+            } else {
+                ribbon.className = 'mb-4 py-2 px-4 rounded-xl font-black text-xs sm:text-sm uppercase tracking-wide bg-slate-800 text-amber-400 border border-slate-700';
+                ribbon.textContent = `⚠️ TIDAK ADA PEMENANG PADA RONDE INI`;
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeExplanationAndNext() {
+            document.getElementById('explanationModal').classList.add('hidden');
+            document.getElementById('explanationModal').classList.remove('flex');
+
+            currentQuestionIndex++;
+            if (currentQuestionIndex < informaticsQuestions.length) {
+                loadNextQuestion();
+            } else {
+                showVictoryScreen();
+            }
+        }
+
+        function loadNextQuestion() {
+            document.getElementById('questionNumBadge').textContent = `${currentQuestionIndex + 1} / ${informaticsQuestions.length}`;
+            document.getElementById('questionText').textContent = informaticsQuestions[currentQuestionIndex].q;
+
+            renderFloatingCards();
+            startRoundCountdown();
+        }
+
+        function updateScoreDisplay() {
+            document.getElementById('scoreHeaderA').textContent = scoreA;
+            document.getElementById('scoreHeaderB').textContent = scoreB;
+            document.getElementById('scoreTextA').textContent = `${scoreA} PTS`;
+            document.getElementById('scoreTextB').textContent = `${scoreB} PTS`;
+        }
+
+        function showVictoryScreen() {
+            const modal = document.getElementById('victoryModal');
+            const title = document.getElementById('victoryTitle');
+            const sub = document.getElementById('victorySubtitle');
+
+            document.getElementById('finalScoreA').textContent = scoreA;
+            document.getElementById('finalScoreB').textContent = scoreB;
+
+            const cardA = document.getElementById('finalCardA');
+            const cardB = document.getElementById('finalCardB');
+            const badgeA = document.getElementById('finalBadgeA');
+            const badgeB = document.getElementById('finalBadgeB');
+
+            if (scoreA > scoreB) {
+                title.textContent = "TIM A MENANG!";
+                sub.textContent = "Selamat Tim A atas kemenangan gemilang di Gesture Battle!";
+                badgeA.textContent = "JUARA 1 🥇";
+                badgeB.textContent = "RUNNER UP 🥈";
+                cardA.className = "p-3 sm:p-4 rounded-2xl bg-blue-950/90 border-2 border-amber-400 text-center shadow-xl shadow-amber-500/20";
+            } else if (scoreB > scoreA) {
+                title.textContent = "TIM B MENANG!";
+                sub.textContent = "Selamat Tim B atas kemenangan gemilang di Gesture Battle!";
+                badgeA.textContent = "RUNNER UP 🥈";
+                badgeB.textContent = "JUARA 1 🥇";
+                cardB.className = "p-3 sm:p-4 rounded-2xl bg-pink-950/90 border-2 border-amber-400 text-center shadow-xl shadow-amber-500/20";
+            } else {
+                title.textContent = "PERTANDINGAN SERI!";
+                sub.textContent = "Luar biasa! Kedua tim memiliki kemampuan seimbang!";
+                badgeA.textContent = "JUARA BERSAMA 🏆";
+                badgeB.textContent = "JUARA BERSAMA 🏆";
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            startConfetti();
+        }
+
+        function restartGame() {
+            currentQuestionIndex = 0;
+            scoreA = 0;
+            scoreB = 0;
+            updateScoreDisplay();
+
+            document.getElementById('victoryModal').classList.add('hidden');
+            document.getElementById('victoryModal').classList.remove('flex');
+
+            loadNextQuestion();
+        }
+
+        function startConfetti() {
+            const canvas = document.getElementById('confettiCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const pieces = [];
+            const colors = ['#3b82f6', '#ec4899', '#eab308', '#22c55e', '#a855f7'];
+
+            for (let i = 0; i < 120; i++) {
+                pieces.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height - canvas.height,
+                    size: Math.random() * 8 + 4,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    speedY: Math.random() * 3 + 2,
+                    speedX: Math.random() * 2 - 1,
+                    rotation: Math.random() * 360
+                });
+            }
+
+            function renderConfetti() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                pieces.forEach(p => {
+                    p.y += p.speedY;
+                    p.x += p.speedX;
+                    p.rotation += 2;
+
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate((p.rotation * Math.PI) / 180);
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                    ctx.restore();
+
+                    if (p.y > canvas.height) {
+                        p.y = -20;
+                        p.x = Math.random() * canvas.width;
+                    }
+                });
+
+                if (!document.getElementById('victoryModal').classList.contains('hidden')) {
+                    requestAnimationFrame(renderConfetti);
+                }
+            }
+            renderConfetti();
+        }
+
+        window.addEventListener('load', () => {
+            document.getElementById('questionNumBadge').textContent = `1 / ${informaticsQuestions.length}`;
+            document.getElementById('questionText').textContent = informaticsQuestions[0].q;
+
+            renderFloatingCards();
+            animateFloatingCards();
+
+            const camTimeout = setTimeout(() => {
+                if (!isCameraInitialized) {
+                    isCameraInitialized = true;
+                    const camModal = document.getElementById('cameraLoadModal');
+                    if (camModal) camModal.classList.add('hidden');
+                    startRoundCountdown();
+                }
+            }, 3500);
+
+            const camera = new Camera(videoElement, {
+                onFrame: async () => {
+                    await hands.send({ image: videoElement });
+                },
+                width: 1280,
+                height: 720
+            });
+
+            camera.start().then(() => {
+                clearTimeout(camTimeout);
+            }).catch(err => {
+                console.error("Camera access error (running in touch/click mode):", err);
+                clearTimeout(camTimeout);
+                isCameraInitialized = true;
+                const camModal = document.getElementById('cameraLoadModal');
+                if (camModal) camModal.classList.add('hidden');
+                startRoundCountdown();
+            });
+
+            document.addEventListener('click', function unlockAudioOnFirstInteraction() {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                if (bgm && bgm.paused && !isMusicMuted) {
+                    bgm.volume = 0.15;
+                    bgm.play().then(() => updateBGMUI(true)).catch(() => updateBGMUI(false));
+                }
+            }, { once: true });
+        });
+    </script>
+</body>
+</html>
